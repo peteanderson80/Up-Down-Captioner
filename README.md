@@ -91,10 +91,10 @@ All instructions are from the top level directory.
 
 ### Pretrained image features
 
-The captioner takes pretrained image features as input (and does not finetune). For best performance, bottom-up attention features should be used. Code for generating these features can be found [here](https://github.com/peteanderson80/bottom-up-attention). For ease-of-use, we provide pretrained features for the [MSCOCO dataset](http://mscoco.org/dataset/#download). Manually download the following 3 tsv files and save them in `data/tsv/`.
+The captioner takes pretrained image features as input (and does not finetune). For best performance, bottom-up attention features should be used. Code for generating these features can be found [here](https://github.com/peteanderson80/bottom-up-attention). For ease-of-use, we provide pretrained features for the [MSCOCO dataset](http://mscoco.org/dataset/#download). Manually download the following tsv file and unzip to `data/tsv/`:
 - [2014 Train/Val Image Features (120K / 23GB)](https://storage.googleapis.com/bottom-up-attention/trainval.zip)
+To make a test server submission, you would also need these features:
 - [2014 Testing Image Features (40K / 7.3GB)](https://storage.googleapis.com/bottom-up-attention/test2014.zip)
-- [2015 Testing Image Features (80K / 15GB)](https://storage.googleapis.com/bottom-up-attention/test2015.zip)
 
 Alternatively, to use conventional pretrained features from the ResNet-101 CNN, run:
 ```Shell

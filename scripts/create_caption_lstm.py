@@ -17,9 +17,6 @@ sys.path.append('./external/caffe/python/caffe/proto'); import caffe_pb2
 
 from caffe_pb2 import NetParameter, LayerParameter, DataParameter, SolverParameter, ParamSpec, TRAIN, TEST
 
-
-def add_conv_weight_filler(param):
-  param.type = 'msra'
   
 def add_weight_filler(param):
   param.type = "gaussian"
@@ -28,17 +25,6 @@ def add_weight_filler(param):
 def add_bias_filler(param, value=0):
   param.type = 'constant'
   param.value = value
-
-def add_subscript(net, subscript, exclusions):
-  ''' Add a subscript to every layer name, top and bottom '''
-  for layer in net.layer:
-    layer.name = layer.name + subscript
-    for i,bottom in enumerate(layer.bottom):
-      if bottom not in exclusions:
-        layer.bottom[i] = bottom + subscript
-    for i,top in enumerate(layer.top):
-      layer.top[i] = top + subscript  
-  return net
 
 class CreateNet(object):
   ''' Class to scaffold out caption nets in Caffe prototxt '''
@@ -785,13 +771,13 @@ python ./scripts/beam_decode.py   --gpu ${GPU_ID:0:1}   \
     param['net_name'] = 'caption_lstm_scst'
     param['random_seed'] = 1701
     param['train_caption_sources'] = ['data/coco_splits/train_captions.txt']
-    param['train_feature_sources'] = ['data/tsv/karpathy_train_resnet101_faster_rcnn_final_test.tsv.%d' % i for i in range(2)]
+    param['train_feature_sources'] = ['data/tsv/trainval/karpathy_train_resnet101_faster_rcnn_genome.tsv.%d' % i for i in range(2)]
     if test_submission:
       # Test on coco test2014
-      param['test_feature_sources'] = ['data/tsv/test2014_resnet101_faster_rcnn_final_test.tsv']
+      param['test_feature_sources'] = ['data/tsv/test2014/test2014_resnet101_faster_rcnn_genome.tsv']
     else:
-      # Test on karpathy val
-      param['test_feature_sources'] = ['data/tsv/karpathy_val_resnet101_faster_rcnn_final_test.tsv']
+      # Test on karpathy test
+      param['test_feature_sources'] = ['data/tsv/trainval/karpathy_test_resnet101_faster_rcnn_genome.tsv']
     param['max_iter'] = 60000
     param['scst_max_iter'] = 1000
     param['max_length'] = 20

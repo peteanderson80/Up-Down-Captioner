@@ -1,0 +1,17 @@
+base_lr: 0.00999999977648
+display: 100
+max_iter: 60000
+lr_policy: "poly"
+power: 1.0
+momentum: 0.899999976158
+weight_decay: 0.000500000023749
+snapshot: 5000
+snapshot_prefix: "snapshots/caption_lstm/lstm"
+random_seed: 1701
+net: "experiments/caption_lstm/net.prototxt"
+average_loss: 100
+clip_gradients: 10.0
+iter_size: 1
+snapshot_format: HDF5
+type: "SGD"
+layer_wise_reduce: false
