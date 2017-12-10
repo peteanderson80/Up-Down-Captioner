@@ -6,4 +6,4 @@
 	url = git://github.com/peteanderson80/coco-caption.git
 [submodule "external/caffe"]
 	path = external/caffe
-	url = https://github.com/peteanderson80/caffe-cap.git
+	url = git://github.com/peteanderson80/caffe.git
