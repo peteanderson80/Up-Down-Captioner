@@ -9,7 +9,7 @@ layer {
   python_param {
     module: "rcnn_layers"
     layer: "RCNNTestDataLayer"
-    param_str: "{\'max_boxes\': 100, \'feature_sources\': [\'data/tsv/karpathy_val_resnet101_faster_rcnn_final_test.tsv\'], \'pool\': True, \'batch_size\': 12}"
+    param_str: "{\'max_boxes\': 100, \'feature_sources\': [\'data/tsv/trainval/karpathy_test_resnet101_faster_rcnn_genome.tsv\'], \'pool\': True, \'batch_size\': 12}"
   }
 }
 layer {

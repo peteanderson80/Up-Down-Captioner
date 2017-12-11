@@ -27,6 +27,3 @@ python -u external/caffe/python/train.py     --solver ${BASE_DIR}${NET_NAME}/scs
 python ./scripts/beam_decode.py   --gpu ${GPU_ID:0:1}       --model ${BASE_DIR}${NET_NAME}/decoder.prototxt     --weights=${SNAPSHOT_DIR}${NET_NAME}/lstm_scst_iter_${SCST_MAX_IT}.caffemodel.h5     --vocab ${DATA_DIR}${VOCAB_FILE}     --outfile ${OUT_DIR}/${NET_NAME}/scst_iter_${SCST_MAX_IT}.json
 
 
-
-
-

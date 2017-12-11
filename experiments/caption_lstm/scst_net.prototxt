@@ -1,4 +1,4 @@
-name: "caption_lstm_scst"
+name: "caption_lstm"
 layer {
   name: "train_data"
   type: "Python"
@@ -9,7 +9,7 @@ layer {
   python_param {
     module: "rcnn_layers"
     layer: "RCNNTestDataLayer"
-    param_str: "{\'max_boxes\': 100, \'feature_sources\': [\'data/tsv/karpathy_train_resnet101_faster_rcnn_final_test.tsv.0\', \'data/tsv/karpathy_train_resnet101_faster_rcnn_final_test.tsv.1\'], \'pool\': True, \'batch_size\': 12}"
+    param_str: "{\'max_boxes\': 100, \'feature_sources\': [\'data/tsv/trainval/karpathy_train_resnet101_faster_rcnn_genome.tsv.0\', \'data/tsv/trainval/karpathy_train_resnet101_faster_rcnn_genome.tsv.1\'], \'pool\': True, \'batch_size\': 12}"
   }
 }
 layer {

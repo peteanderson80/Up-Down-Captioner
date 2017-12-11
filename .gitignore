@@ -6,6 +6,8 @@ outputs
 plots
 scores
 data/coco
+data/coco_splits
+data/tsv
 *.caffemodel
 *.caffemodel.H5
 

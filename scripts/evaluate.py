@@ -85,7 +85,3 @@ def evaluate_model(model):
   plot()
 
 
-if __name__ == '__main__':
-  evaluate_model('caption_lstm/iter_60000.json')
-
-

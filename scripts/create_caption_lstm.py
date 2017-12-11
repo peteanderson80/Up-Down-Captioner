@@ -768,7 +768,7 @@ python ./scripts/beam_decode.py   --gpu ${GPU_ID:0:1}   \
 
   def get_base_param(self, test_submission=False):
     param = {}
-    param['net_name'] = 'caption_lstm_scst'
+    param['net_name'] = 'caption_lstm'
     param['random_seed'] = 1701
     param['train_caption_sources'] = ['data/coco_splits/train_captions.txt']
     param['train_feature_sources'] = ['data/tsv/trainval/karpathy_train_resnet101_faster_rcnn_genome.tsv.%d' % i for i in range(2)]
