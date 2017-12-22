@@ -695,7 +695,7 @@ mkdir -p ${LOG_DIR}${NET_NAME}
 mkdir -p ${SNAPSHOT_DIR}${NET_NAME}
 mkdir -p ${OUT_DIR}${NET_NAME}
    
-python -u external/caffe/python/train.py \
+python -u ./scripts/train.py \
     --solver ${BASE_DIR}${NET_NAME}/solver.prototxt \
     --gpus ${GPU_ID//,/ } \
     > ${LOG_DIR}${NET_NAME}/solver.log 2<&1 
@@ -708,7 +708,7 @@ python ./scripts/beam_decode.py   --gpu ${GPU_ID:0:1}   \
     --outfile ${OUT_DIR}/${NET_NAME}/iter_${MAX_IT}.json 
 
 # Self-critical sequence training
-python -u external/caffe/python/train.py \
+python -u ./scripts/train.py \
     --solver ${BASE_DIR}${NET_NAME}/scst_solver.prototxt \
     --gpus ${GPU_ID//,/ } \
     --weights=${SNAPSHOT_DIR}${NET_NAME}/lstm_iter_${MAX_IT}.caffemodel.h5 \
