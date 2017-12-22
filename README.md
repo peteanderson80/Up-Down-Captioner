@@ -97,7 +97,7 @@ The captioner takes pretrained image features as input (and does not finetune). 
 To make a test server submission, you would also need these features:
 - [2014 Testing Image Features (40K / 7.3GB)](https://storage.googleapis.com/bottom-up-attention/test2014.zip)
 
-Alternatively, to use conventional pretrained features from the ResNet-101 CNN, run:
+Alternatively, to generate conventional pretrained features from the ResNet-101 CNN, run:
 ```Shell
 cd $REPO_ROOT
 python scripts/generate_baseline.py
@@ -105,7 +105,7 @@ python scripts/generate_baseline.py
 
 ### Training
 
-To train the model on the karpathy training set, and evaluate on the karpathy testing set. 
+To train the model on the karpathy training set, and then generate and evaluate captions on the karpathy testing set (using bottom-up attention features): 
 ```Shell
 cd $REPO_ROOT
 ./experiments/caption_lstm/train.sh
@@ -119,23 +119,27 @@ Generated caption outputs are saved under: `outputs/caption_lstm/`
 
 Scores for the generated captions (on the karpathy test set) are saved under: `scores/caption_lstm/`
 
-Plots are saved under `plots/caption_lstm'
+Plots are saved under `plots/caption_lstm`
+
+To train and evaluate the baseline using conventional pretrained features, follow the instructions above but replace `caption_lstm` with `caption_lstm_baseline_resnet`.
 
 ### Results
 
-todo
+Results (using bottom-up attention features) should be similar to the numbers below (as reported in Table 1 of the paper).
 
-|                   | objects mAP@0.5     | objects weighted mAP@0.5 | attributes mAP@0.5    | attributes weighted mAP@0.5 |
-|-------------------|:-------------------:|:------------------------:|:---------------------:|:---------------------------:|
-|Faster R-CNN, ResNet-101 | 10.2%  | 15.1% | 7.8%  | 27.8% |
+|                   | BLEU-1  | BLEU-4  | METEOR  | ROUGE-L |  CIDEr  |  SPICE  |
+|-------------------|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|
+|Cross-Entropy Loss |  77.2   |  36.2   |  27.0   |  56.4   |  113.5  |  20.3   |
+|CIDEr Optimization |  79.8   |  36.3   |  27.7   |  56.9   |  120.1  |  21.4   |
 
 ### Using the model to predict on new images
 
-### Using the model 
+Todo - add a demo etc.
 
 ### Other useful scripts
 
-1. create_caption_lstm.py
-    The version of caffe provided as with this repository includes (amongst other things) a custom `LSTMNode` layer that enables sampling and beam search through LSTM layers. However, the resulting network architecture prototxt files are quite complicated. The file `scripts/create_caption_lstm.py` scaffolds out network structures, such as those in `experiments`.
+1. `create_caption_lstm.py`
+    The version of caffe provided as a submodule with this repo includes (amongst other things) a custom `LSTMNode` layer that enables sampling and beam search through LSTM layers. However, the resulting network architecture prototxt files are quite complicated. The file `scripts/create_caption_lstm.py` scaffolds out network structures, such as those in `experiments`.module: "rcnn_layers"
 
-
+2. `layers/efficient_rcnn_layers.py`
+    The provided `net.prototxt` file uses a python data layer (`layers/rcnn_layers.py`) that loads all training data (including image features) into memory. If you have insufficient system memory use this python data layer instead, by replacing `module: "rcnn_layers"` with `module: "efficient_rcnn_layers"` in `experiments/caption_lstm/net.prototxt`.
