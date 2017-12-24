@@ -8,6 +8,7 @@ scores
 data/coco
 data/coco_splits
 data/tsv
+data/images
 *.caffemodel
 *.caffemodel.H5
 

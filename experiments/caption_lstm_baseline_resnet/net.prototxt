@@ -11,7 +11,7 @@ layer {
   python_param {
     module: "efficient_rcnn_layers"
     layer: "RCNNCaptionTrainDataLayer"
-    param_str: "{\'end_of_sequence\': 0, \'caption_sources\': [\'data/coco_splits/train_captions.txt\'], \'sequence_length\': 20, \'pool\': True, \'ignore_label\': 1, \'feature_sources\': [\'data/tsv/karpathy_train_resnet101_baseline_resnet_final_test.tsv.0\', \'data/tsv/karpathy_train_resnet101_baseline_resnet_final_test.tsv.1\'], \'max_boxes\': 100, \'batch_size\': 50}"
+    param_str: "{\'end_of_sequence\': 0, \'caption_sources\': [\'data/coco_splits/train_captions.txt\'], \'sequence_length\': 20, \'pool\': True, \'ignore_label\': 1, \'feature_sources\': [\'data/tsv/trainval/karpathy_train_resnet101_baseline.tsv.0\', \'data/tsv/trainval/karpathy_train_resnet101_baseline.tsv.1\'], \'max_boxes\': 100, \'batch_size\': 50}"
   }
 }
 layer {

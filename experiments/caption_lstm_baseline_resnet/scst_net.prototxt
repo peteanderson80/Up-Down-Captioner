@@ -9,7 +9,7 @@ layer {
   python_param {
     module: "efficient_rcnn_layers"
     layer: "RCNNTestDataLayer"
-    param_str: "{\'max_boxes\': 100, \'feature_sources\': [\'data/tsv/karpathy_train_resnet101_baseline_resnet_final_test.tsv.0\', \'data/tsv/karpathy_train_resnet101_baseline_resnet_final_test.tsv.1\'], \'pool\': True, \'batch_size\': 12}"
+    param_str: "{\'max_boxes\': 100, \'feature_sources\': [\'data/tsv/trainval/karpathy_train_resnet101_baseline.tsv.0\', \'data/tsv/trainval/karpathy_train_resnet101_baseline.tsv.1\'], \'pool\': True, \'batch_size\': 12}"
   }
 }
 layer {

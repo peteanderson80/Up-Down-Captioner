@@ -97,10 +97,13 @@ The captioner takes pretrained image features as input (and does not finetune). 
 To make a test server submission, you would also need these features:
 - [2014 Testing Image Features (40K / 7.3GB)](https://storage.googleapis.com/bottom-up-attention/test2014.zip)
 
-Alternatively, to generate conventional pretrained features from the ResNet-101 CNN, run:
+Alternatively, to generate conventional pretrained features from the ResNet-101 CNN:
+- Download the [pretrained ResNet-101 model](https://github.com/KaimingHe/deep-residual-networks#models) and save it in `baseline/ResNet-101-model.caffemodel`
+- Download the MS COCO train/val images, and extract them into `data/images`.
+- Run:
 ```Shell
 cd $REPO_ROOT
-python scripts/generate_baseline.py
+./scripts/generate_baseline.py
 ``` 
 
 ### Training
@@ -119,8 +122,6 @@ Generated caption outputs are saved under: `outputs/caption_lstm/`
 
 Scores for the generated captions (on the karpathy test set) are saved under: `scores/caption_lstm/`
 
-Plots are saved under `plots/caption_lstm`
-
 To train and evaluate the baseline using conventional pretrained features, follow the instructions above but replace `caption_lstm` with `caption_lstm_baseline_resnet`.
 
 ### Results
@@ -138,8 +139,11 @@ Todo - add a demo etc.
 
 ### Other useful scripts
 
-1. `create_caption_lstm.py`
+1. `scripts/create_caption_lstm.py`
     The version of caffe provided as a submodule with this repo includes (amongst other things) a custom `LSTMNode` layer that enables sampling and beam search through LSTM layers. However, the resulting network architecture prototxt files are quite complicated. The file `scripts/create_caption_lstm.py` scaffolds out network structures, such as those in `experiments`.module: "rcnn_layers"
 
 2. `layers/efficient_rcnn_layers.py`
     The provided `net.prototxt` file uses a python data layer (`layers/rcnn_layers.py`) that loads all training data (including image features) into memory. If you have insufficient system memory use this python data layer instead, by replacing `module: "rcnn_layers"` with `module: "efficient_rcnn_layers"` in `experiments/caption_lstm/net.prototxt`.
+
+3. `scripts/plot.py`
+    Basic script for plotting validation set scores during training.
