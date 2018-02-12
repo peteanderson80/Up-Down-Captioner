@@ -39,9 +39,14 @@ This code is released under the MIT License (refer to the LICENSE file for detai
 
 By default, the provided training scripts assume that two gpus are available, with indices 0,1. Training on two gpus takes around 9 hours. Any NVIDIA GPU with 8GB or larger memory should be OK. Training scripts and prototxt files will require minor modifications to train on a single gpu (e.g. set `iter_size` to 2).
 
+
+### Demo - Using the model to predict on new images
+
+Run install instructions 1-4 below, then use the notebook at `scripts/demo.ipynb`
+
 ### Installation
 
-All instructions are from the top level directory.
+All instructions are from the top level directory. To run the demo, should be only steps 1-4 required (remaining steps are for training a model).
 
 1.  Clone the Up-Down-Captioner repository:
     ```Shell
@@ -65,29 +70,36 @@ All instructions are from the top level directory.
 
 3.  Add python layers and caffe build to PYTHONPATH:
     ```Shell
-    cd $REPO_ROOT/data
-    export PYTHONPATH=${PYTHONPATH}:$(pwd)/layers:$(pwd)/external/caffe/python
+    cd $REPO_ROOT
+    export PYTHONPATH=${PYTHONPATH}:$(pwd)/layers:$(pwd)/lib:$(pwd)/external/caffe/python
     ```
     
-4.  Download Stanford CoreNLP (required by the evaluation code):
+4.  Build Ross Girshick's Cython modules (to run the demo on new images)
+    ```Shell
+    cd $REPO_ROOT/lib
+    make
+    ```
+    
+5.  Download Stanford CoreNLP (required by the evaluation code):
     ```Shell
     cd ./external/coco-caption
     ./get_stanford_models.sh
     ```
 
-5.  Download the MS COCO train/val image caption annotations. Extract all the json files into one folder `$COCOdata`, then create a symlink to this location:
+6.  Download the MS COCO train/val image caption annotations. Extract all the json files into one folder `$COCOdata`, then create a symlink to this location:
     ```Shell
     cd $REPO_ROOT/data
     ln -s $COCOdata coco
     ``` 
 
-6.  Pre-process the caption annotations for training (building vocabs etc).
+7.  Pre-process the caption annotations for training (building vocabs etc).
     ```Shell
     cd $REPO_ROOT
     python scripts/preprocess_coco.py
     ``` 
     
-7.  Download or generate pretrained image features following the instructions below.
+8.  Download or generate pretrained image features following the instructions below.
+
 
 ### Pretrained image features
 
@@ -132,10 +144,6 @@ Results (using bottom-up attention features) should be similar to the numbers be
 |-------------------|:-------:|:-------:|:-------:|:-------:|:-------:|:-------:|
 |Cross-Entropy Loss |  77.2   |  36.2   |  27.0   |  56.4   |  113.5  |  20.3   |
 |CIDEr Optimization |  79.8   |  36.3   |  27.7   |  56.9   |  120.1  |  21.4   |
-
-### Using the model to predict on new images
-
-Todo - add a demo etc.
 
 ### Other useful scripts
 

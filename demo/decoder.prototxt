@@ -1,0 +1,7217 @@
+name: "caption_lstm"
+input: "image_id"
+input_shape {
+  dim: 1
+  dim: 3
+}
+input: "num_boxes"
+input_shape {
+  dim: 1
+  dim: 1
+}
+input: "boxes"
+input_shape {
+  dim: 1
+  dim: 101
+  dim: 4
+}
+input: "features"
+input_shape {
+  dim: 1
+  dim: 101
+  dim: 2048
+}
+layer {
+  name: "feature_slice_layer"
+  type: "Slice"
+  bottom: "features"
+  top: "avg_pool"
+  top: "spatial_features"
+  slice_param {
+    slice_dim: 1
+    slice_point: 1
+  }
+}
+layer {
+  name: "context"
+  type: "Flatten"
+  bottom: "avg_pool"
+  top: "context"
+  flatten_param {
+    axis: 1
+  }
+}
+layer {
+  name: "fc"
+  type: "InnerProduct"
+  bottom: "spatial_features"
+  top: "fc"
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "tile_context"
+  type: "Tile"
+  bottom: "context"
+  top: "tile_context"
+  tile_param {
+    axis: 1
+    tiles: 5
+  }
+}
+layer {
+  name: "beam_context"
+  type: "Reshape"
+  bottom: "tile_context"
+  top: "beam_context"
+  reshape_param {
+    shape {
+      dim: -1
+      dim: 2048
+    }
+  }
+}
+layer {
+  name: "tile_spatial_features"
+  type: "Tile"
+  bottom: "spatial_features"
+  top: "tile_spatial_features"
+  tile_param {
+    axis: 1
+    tiles: 5
+  }
+}
+layer {
+  name: "beam_spatial_features"
+  type: "Reshape"
+  bottom: "tile_spatial_features"
+  top: "beam_spatial_features"
+  reshape_param {
+    shape {
+      dim: -1
+      dim: 100
+      dim: 2048
+    }
+  }
+}
+layer {
+  name: "tile_fc"
+  type: "Tile"
+  bottom: "fc"
+  top: "tile_fc"
+  tile_param {
+    axis: 1
+    tiles: 5
+  }
+}
+layer {
+  name: "beam_fc"
+  type: "Reshape"
+  bottom: "tile_fc"
+  top: "beam_fc"
+  reshape_param {
+    shape {
+      dim: -1
+      dim: 100
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "tile_num_boxes"
+  type: "Tile"
+  bottom: "num_boxes"
+  top: "tile_num_boxes"
+  tile_param {
+    axis: 1
+    tiles: 5
+  }
+}
+layer {
+  name: "beam_num_boxes"
+  type: "Reshape"
+  bottom: "tile_num_boxes"
+  top: "beam_num_boxes"
+  reshape_param {
+    shape {
+      dim: -1
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "input"
+  type: "DummyData"
+  top: "input"
+  dummy_data_param {
+    data_filler {
+      value: 0.0
+    }
+    shape {
+      dim: 5
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "lstm0_hidden_prev"
+  type: "DummyData"
+  top: "lstm0_hidden_prev"
+  dummy_data_param {
+    shape {
+      dim: 5
+      dim: 1000
+    }
+  }
+}
+layer {
+  name: "lstm0_mem_cell_prev"
+  type: "DummyData"
+  top: "lstm0_mem_cell_prev"
+  dummy_data_param {
+    shape {
+      dim: 5
+      dim: 1000
+    }
+  }
+}
+layer {
+  name: "lstm1_hidden_prev"
+  type: "DummyData"
+  top: "lstm1_hidden_prev"
+  dummy_data_param {
+    shape {
+      dim: 5
+      dim: 1000
+    }
+  }
+}
+layer {
+  name: "lstm1_mem_cell_prev"
+  type: "DummyData"
+  top: "lstm1_mem_cell_prev"
+  dummy_data_param {
+    shape {
+      dim: 5
+      dim: 1000
+    }
+  }
+}
+layer {
+  name: "embedding"
+  type: "Embed"
+  bottom: "input"
+  top: "embedding"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t0"
+  type: "Concat"
+  bottom: "embedding"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev"
+  bottom: "lstm0_hidden_prev"
+  top: "concat0_t0"
+}
+layer {
+  name: "lstm1"
+  type: "LSTMNode"
+  bottom: "concat0_t0"
+  bottom: "lstm0_mem_cell_prev"
+  top: "lstm0_hidden0"
+  top: "lstm0_mem_cell0"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: false
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_0"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden0"
+  top: "hidden_att_0"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_0"
+  type: "Tile"
+  bottom: "hidden_att_0"
+  top: "tile_hidden_att_0"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_0"
+  type: "Reshape"
+  bottom: "tile_hidden_att_0"
+  top: "tile_hidden_reshape_0"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_0"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_0"
+  top: "sum_hidden_att_0"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_0"
+  type: "TanH"
+  bottom: "sum_hidden_att_0"
+  top: "sum_hidden_att_0"
+}
+layer {
+  name: "predict_att_0"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_0"
+  top: "predict_att_0"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_0"
+  type: "Reshape"
+  bottom: "predict_att_0"
+  top: "reshape_predict_att_0"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_0"
+  type: "Softmax"
+  bottom: "reshape_predict_att_0"
+  bottom: "beam_num_boxes"
+  top: "att_weight_0"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_0"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_0"
+  top: "att_product_0"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_0"
+  type: "Permute"
+  bottom: "att_product_0"
+  top: "permute_att_0"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_0"
+  type: "Reduction"
+  bottom: "permute_att_0"
+  top: "fc8_0"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t0"
+  type: "Concat"
+  bottom: "lstm0_hidden0"
+  bottom: "fc8_0"
+  bottom: "lstm1_hidden_prev"
+  top: "concat1_t0"
+}
+layer {
+  name: "lstm2"
+  type: "LSTMNode"
+  bottom: "concat1_t0"
+  bottom: "lstm1_mem_cell_prev"
+  top: "lstm1_hidden0"
+  top: "lstm1_mem_cell0"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: false
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden0"
+  top: "predict"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_0"
+  type: "Softmax"
+  bottom: "predict"
+  top: "probs_0"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_0"
+  type: "Log"
+  bottom: "probs_0"
+  top: "logp_0"
+}
+layer {
+  name: "beam_search_0"
+  type: "BeamSearchNode"
+  bottom: "logp_0"
+  bottom: "lstm0_hidden0"
+  bottom: "lstm0_mem_cell0"
+  bottom: "lstm1_hidden0"
+  bottom: "lstm1_mem_cell0"
+  top: "bs_scores_0"
+  top: "bs_sentence_0"
+  top: "input_1"
+  top: "lstm0_hidden_prev1"
+  top: "lstm0_mem_cell_prev1"
+  top: "lstm1_hidden_prev1"
+  top: "lstm1_mem_cell_prev1"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_1"
+  type: "Embed"
+  bottom: "input_1"
+  top: "embedding_1"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t1"
+  type: "Concat"
+  bottom: "embedding_1"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev1"
+  bottom: "lstm0_hidden_prev1"
+  top: "concat0_t1"
+}
+layer {
+  name: "lstm1_t1"
+  type: "LSTMNode"
+  bottom: "concat0_t1"
+  bottom: "lstm0_mem_cell_prev1"
+  top: "lstm0_hidden1"
+  top: "lstm0_mem_cell1"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_1"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden1"
+  top: "hidden_att_1"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_1"
+  type: "Tile"
+  bottom: "hidden_att_1"
+  top: "tile_hidden_att_1"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_1"
+  type: "Reshape"
+  bottom: "tile_hidden_att_1"
+  top: "tile_hidden_reshape_1"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_1"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_1"
+  top: "sum_hidden_att_1"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_1"
+  type: "TanH"
+  bottom: "sum_hidden_att_1"
+  top: "sum_hidden_att_1"
+}
+layer {
+  name: "predict_att_1"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_1"
+  top: "predict_att_1"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_1"
+  type: "Reshape"
+  bottom: "predict_att_1"
+  top: "reshape_predict_att_1"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_1"
+  type: "Softmax"
+  bottom: "reshape_predict_att_1"
+  bottom: "beam_num_boxes"
+  top: "att_weight_1"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_1"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_1"
+  top: "att_product_1"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_1"
+  type: "Permute"
+  bottom: "att_product_1"
+  top: "permute_att_1"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_1"
+  type: "Reduction"
+  bottom: "permute_att_1"
+  top: "fc8_1"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t1"
+  type: "Concat"
+  bottom: "lstm0_hidden1"
+  bottom: "fc8_1"
+  bottom: "lstm1_hidden_prev1"
+  top: "concat1_t1"
+}
+layer {
+  name: "lstm2_t1"
+  type: "LSTMNode"
+  bottom: "concat1_t1"
+  bottom: "lstm1_mem_cell_prev1"
+  top: "lstm1_hidden1"
+  top: "lstm1_mem_cell1"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_1"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden1"
+  top: "predict_1"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_1"
+  type: "Softmax"
+  bottom: "predict_1"
+  top: "probs_1"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_1"
+  type: "Log"
+  bottom: "probs_1"
+  top: "logp_1"
+}
+layer {
+  name: "beam_search_1"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_0"
+  bottom: "bs_sentence_0"
+  bottom: "logp_1"
+  bottom: "lstm0_hidden1"
+  bottom: "lstm0_mem_cell1"
+  bottom: "lstm1_hidden1"
+  bottom: "lstm1_mem_cell1"
+  top: "bs_scores_1"
+  top: "bs_sentence_1"
+  top: "input_2"
+  top: "lstm0_hidden_prev2"
+  top: "lstm0_mem_cell_prev2"
+  top: "lstm1_hidden_prev2"
+  top: "lstm1_mem_cell_prev2"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_2"
+  type: "Embed"
+  bottom: "input_2"
+  top: "embedding_2"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t2"
+  type: "Concat"
+  bottom: "embedding_2"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev2"
+  bottom: "lstm0_hidden_prev2"
+  top: "concat0_t2"
+}
+layer {
+  name: "lstm1_t2"
+  type: "LSTMNode"
+  bottom: "concat0_t2"
+  bottom: "lstm0_mem_cell_prev2"
+  top: "lstm0_hidden2"
+  top: "lstm0_mem_cell2"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_2"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden2"
+  top: "hidden_att_2"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_2"
+  type: "Tile"
+  bottom: "hidden_att_2"
+  top: "tile_hidden_att_2"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_2"
+  type: "Reshape"
+  bottom: "tile_hidden_att_2"
+  top: "tile_hidden_reshape_2"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_2"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_2"
+  top: "sum_hidden_att_2"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_2"
+  type: "TanH"
+  bottom: "sum_hidden_att_2"
+  top: "sum_hidden_att_2"
+}
+layer {
+  name: "predict_att_2"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_2"
+  top: "predict_att_2"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_2"
+  type: "Reshape"
+  bottom: "predict_att_2"
+  top: "reshape_predict_att_2"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_2"
+  type: "Softmax"
+  bottom: "reshape_predict_att_2"
+  bottom: "beam_num_boxes"
+  top: "att_weight_2"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_2"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_2"
+  top: "att_product_2"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_2"
+  type: "Permute"
+  bottom: "att_product_2"
+  top: "permute_att_2"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_2"
+  type: "Reduction"
+  bottom: "permute_att_2"
+  top: "fc8_2"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t2"
+  type: "Concat"
+  bottom: "lstm0_hidden2"
+  bottom: "fc8_2"
+  bottom: "lstm1_hidden_prev2"
+  top: "concat1_t2"
+}
+layer {
+  name: "lstm2_t2"
+  type: "LSTMNode"
+  bottom: "concat1_t2"
+  bottom: "lstm1_mem_cell_prev2"
+  top: "lstm1_hidden2"
+  top: "lstm1_mem_cell2"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_2"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden2"
+  top: "predict_2"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_2"
+  type: "Softmax"
+  bottom: "predict_2"
+  top: "probs_2"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_2"
+  type: "Log"
+  bottom: "probs_2"
+  top: "logp_2"
+}
+layer {
+  name: "beam_search_2"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_1"
+  bottom: "bs_sentence_1"
+  bottom: "logp_2"
+  bottom: "lstm0_hidden2"
+  bottom: "lstm0_mem_cell2"
+  bottom: "lstm1_hidden2"
+  bottom: "lstm1_mem_cell2"
+  top: "bs_scores_2"
+  top: "bs_sentence_2"
+  top: "input_3"
+  top: "lstm0_hidden_prev3"
+  top: "lstm0_mem_cell_prev3"
+  top: "lstm1_hidden_prev3"
+  top: "lstm1_mem_cell_prev3"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_3"
+  type: "Embed"
+  bottom: "input_3"
+  top: "embedding_3"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t3"
+  type: "Concat"
+  bottom: "embedding_3"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev3"
+  bottom: "lstm0_hidden_prev3"
+  top: "concat0_t3"
+}
+layer {
+  name: "lstm1_t3"
+  type: "LSTMNode"
+  bottom: "concat0_t3"
+  bottom: "lstm0_mem_cell_prev3"
+  top: "lstm0_hidden3"
+  top: "lstm0_mem_cell3"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_3"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden3"
+  top: "hidden_att_3"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_3"
+  type: "Tile"
+  bottom: "hidden_att_3"
+  top: "tile_hidden_att_3"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_3"
+  type: "Reshape"
+  bottom: "tile_hidden_att_3"
+  top: "tile_hidden_reshape_3"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_3"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_3"
+  top: "sum_hidden_att_3"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_3"
+  type: "TanH"
+  bottom: "sum_hidden_att_3"
+  top: "sum_hidden_att_3"
+}
+layer {
+  name: "predict_att_3"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_3"
+  top: "predict_att_3"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_3"
+  type: "Reshape"
+  bottom: "predict_att_3"
+  top: "reshape_predict_att_3"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_3"
+  type: "Softmax"
+  bottom: "reshape_predict_att_3"
+  bottom: "beam_num_boxes"
+  top: "att_weight_3"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_3"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_3"
+  top: "att_product_3"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_3"
+  type: "Permute"
+  bottom: "att_product_3"
+  top: "permute_att_3"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_3"
+  type: "Reduction"
+  bottom: "permute_att_3"
+  top: "fc8_3"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t3"
+  type: "Concat"
+  bottom: "lstm0_hidden3"
+  bottom: "fc8_3"
+  bottom: "lstm1_hidden_prev3"
+  top: "concat1_t3"
+}
+layer {
+  name: "lstm2_t3"
+  type: "LSTMNode"
+  bottom: "concat1_t3"
+  bottom: "lstm1_mem_cell_prev3"
+  top: "lstm1_hidden3"
+  top: "lstm1_mem_cell3"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_3"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden3"
+  top: "predict_3"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_3"
+  type: "Softmax"
+  bottom: "predict_3"
+  top: "probs_3"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_3"
+  type: "Log"
+  bottom: "probs_3"
+  top: "logp_3"
+}
+layer {
+  name: "beam_search_3"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_2"
+  bottom: "bs_sentence_2"
+  bottom: "logp_3"
+  bottom: "lstm0_hidden3"
+  bottom: "lstm0_mem_cell3"
+  bottom: "lstm1_hidden3"
+  bottom: "lstm1_mem_cell3"
+  top: "bs_scores_3"
+  top: "bs_sentence_3"
+  top: "input_4"
+  top: "lstm0_hidden_prev4"
+  top: "lstm0_mem_cell_prev4"
+  top: "lstm1_hidden_prev4"
+  top: "lstm1_mem_cell_prev4"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_4"
+  type: "Embed"
+  bottom: "input_4"
+  top: "embedding_4"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t4"
+  type: "Concat"
+  bottom: "embedding_4"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev4"
+  bottom: "lstm0_hidden_prev4"
+  top: "concat0_t4"
+}
+layer {
+  name: "lstm1_t4"
+  type: "LSTMNode"
+  bottom: "concat0_t4"
+  bottom: "lstm0_mem_cell_prev4"
+  top: "lstm0_hidden4"
+  top: "lstm0_mem_cell4"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_4"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden4"
+  top: "hidden_att_4"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_4"
+  type: "Tile"
+  bottom: "hidden_att_4"
+  top: "tile_hidden_att_4"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_4"
+  type: "Reshape"
+  bottom: "tile_hidden_att_4"
+  top: "tile_hidden_reshape_4"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_4"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_4"
+  top: "sum_hidden_att_4"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_4"
+  type: "TanH"
+  bottom: "sum_hidden_att_4"
+  top: "sum_hidden_att_4"
+}
+layer {
+  name: "predict_att_4"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_4"
+  top: "predict_att_4"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_4"
+  type: "Reshape"
+  bottom: "predict_att_4"
+  top: "reshape_predict_att_4"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_4"
+  type: "Softmax"
+  bottom: "reshape_predict_att_4"
+  bottom: "beam_num_boxes"
+  top: "att_weight_4"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_4"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_4"
+  top: "att_product_4"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_4"
+  type: "Permute"
+  bottom: "att_product_4"
+  top: "permute_att_4"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_4"
+  type: "Reduction"
+  bottom: "permute_att_4"
+  top: "fc8_4"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t4"
+  type: "Concat"
+  bottom: "lstm0_hidden4"
+  bottom: "fc8_4"
+  bottom: "lstm1_hidden_prev4"
+  top: "concat1_t4"
+}
+layer {
+  name: "lstm2_t4"
+  type: "LSTMNode"
+  bottom: "concat1_t4"
+  bottom: "lstm1_mem_cell_prev4"
+  top: "lstm1_hidden4"
+  top: "lstm1_mem_cell4"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_4"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden4"
+  top: "predict_4"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_4"
+  type: "Softmax"
+  bottom: "predict_4"
+  top: "probs_4"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_4"
+  type: "Log"
+  bottom: "probs_4"
+  top: "logp_4"
+}
+layer {
+  name: "beam_search_4"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_3"
+  bottom: "bs_sentence_3"
+  bottom: "logp_4"
+  bottom: "lstm0_hidden4"
+  bottom: "lstm0_mem_cell4"
+  bottom: "lstm1_hidden4"
+  bottom: "lstm1_mem_cell4"
+  top: "bs_scores_4"
+  top: "bs_sentence_4"
+  top: "input_5"
+  top: "lstm0_hidden_prev5"
+  top: "lstm0_mem_cell_prev5"
+  top: "lstm1_hidden_prev5"
+  top: "lstm1_mem_cell_prev5"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_5"
+  type: "Embed"
+  bottom: "input_5"
+  top: "embedding_5"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t5"
+  type: "Concat"
+  bottom: "embedding_5"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev5"
+  bottom: "lstm0_hidden_prev5"
+  top: "concat0_t5"
+}
+layer {
+  name: "lstm1_t5"
+  type: "LSTMNode"
+  bottom: "concat0_t5"
+  bottom: "lstm0_mem_cell_prev5"
+  top: "lstm0_hidden5"
+  top: "lstm0_mem_cell5"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_5"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden5"
+  top: "hidden_att_5"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_5"
+  type: "Tile"
+  bottom: "hidden_att_5"
+  top: "tile_hidden_att_5"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_5"
+  type: "Reshape"
+  bottom: "tile_hidden_att_5"
+  top: "tile_hidden_reshape_5"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_5"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_5"
+  top: "sum_hidden_att_5"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_5"
+  type: "TanH"
+  bottom: "sum_hidden_att_5"
+  top: "sum_hidden_att_5"
+}
+layer {
+  name: "predict_att_5"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_5"
+  top: "predict_att_5"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_5"
+  type: "Reshape"
+  bottom: "predict_att_5"
+  top: "reshape_predict_att_5"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_5"
+  type: "Softmax"
+  bottom: "reshape_predict_att_5"
+  bottom: "beam_num_boxes"
+  top: "att_weight_5"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_5"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_5"
+  top: "att_product_5"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_5"
+  type: "Permute"
+  bottom: "att_product_5"
+  top: "permute_att_5"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_5"
+  type: "Reduction"
+  bottom: "permute_att_5"
+  top: "fc8_5"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t5"
+  type: "Concat"
+  bottom: "lstm0_hidden5"
+  bottom: "fc8_5"
+  bottom: "lstm1_hidden_prev5"
+  top: "concat1_t5"
+}
+layer {
+  name: "lstm2_t5"
+  type: "LSTMNode"
+  bottom: "concat1_t5"
+  bottom: "lstm1_mem_cell_prev5"
+  top: "lstm1_hidden5"
+  top: "lstm1_mem_cell5"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_5"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden5"
+  top: "predict_5"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_5"
+  type: "Softmax"
+  bottom: "predict_5"
+  top: "probs_5"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_5"
+  type: "Log"
+  bottom: "probs_5"
+  top: "logp_5"
+}
+layer {
+  name: "beam_search_5"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_4"
+  bottom: "bs_sentence_4"
+  bottom: "logp_5"
+  bottom: "lstm0_hidden5"
+  bottom: "lstm0_mem_cell5"
+  bottom: "lstm1_hidden5"
+  bottom: "lstm1_mem_cell5"
+  top: "bs_scores_5"
+  top: "bs_sentence_5"
+  top: "input_6"
+  top: "lstm0_hidden_prev6"
+  top: "lstm0_mem_cell_prev6"
+  top: "lstm1_hidden_prev6"
+  top: "lstm1_mem_cell_prev6"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_6"
+  type: "Embed"
+  bottom: "input_6"
+  top: "embedding_6"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t6"
+  type: "Concat"
+  bottom: "embedding_6"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev6"
+  bottom: "lstm0_hidden_prev6"
+  top: "concat0_t6"
+}
+layer {
+  name: "lstm1_t6"
+  type: "LSTMNode"
+  bottom: "concat0_t6"
+  bottom: "lstm0_mem_cell_prev6"
+  top: "lstm0_hidden6"
+  top: "lstm0_mem_cell6"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_6"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden6"
+  top: "hidden_att_6"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_6"
+  type: "Tile"
+  bottom: "hidden_att_6"
+  top: "tile_hidden_att_6"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_6"
+  type: "Reshape"
+  bottom: "tile_hidden_att_6"
+  top: "tile_hidden_reshape_6"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_6"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_6"
+  top: "sum_hidden_att_6"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_6"
+  type: "TanH"
+  bottom: "sum_hidden_att_6"
+  top: "sum_hidden_att_6"
+}
+layer {
+  name: "predict_att_6"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_6"
+  top: "predict_att_6"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_6"
+  type: "Reshape"
+  bottom: "predict_att_6"
+  top: "reshape_predict_att_6"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_6"
+  type: "Softmax"
+  bottom: "reshape_predict_att_6"
+  bottom: "beam_num_boxes"
+  top: "att_weight_6"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_6"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_6"
+  top: "att_product_6"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_6"
+  type: "Permute"
+  bottom: "att_product_6"
+  top: "permute_att_6"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_6"
+  type: "Reduction"
+  bottom: "permute_att_6"
+  top: "fc8_6"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t6"
+  type: "Concat"
+  bottom: "lstm0_hidden6"
+  bottom: "fc8_6"
+  bottom: "lstm1_hidden_prev6"
+  top: "concat1_t6"
+}
+layer {
+  name: "lstm2_t6"
+  type: "LSTMNode"
+  bottom: "concat1_t6"
+  bottom: "lstm1_mem_cell_prev6"
+  top: "lstm1_hidden6"
+  top: "lstm1_mem_cell6"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_6"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden6"
+  top: "predict_6"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_6"
+  type: "Softmax"
+  bottom: "predict_6"
+  top: "probs_6"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_6"
+  type: "Log"
+  bottom: "probs_6"
+  top: "logp_6"
+}
+layer {
+  name: "beam_search_6"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_5"
+  bottom: "bs_sentence_5"
+  bottom: "logp_6"
+  bottom: "lstm0_hidden6"
+  bottom: "lstm0_mem_cell6"
+  bottom: "lstm1_hidden6"
+  bottom: "lstm1_mem_cell6"
+  top: "bs_scores_6"
+  top: "bs_sentence_6"
+  top: "input_7"
+  top: "lstm0_hidden_prev7"
+  top: "lstm0_mem_cell_prev7"
+  top: "lstm1_hidden_prev7"
+  top: "lstm1_mem_cell_prev7"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_7"
+  type: "Embed"
+  bottom: "input_7"
+  top: "embedding_7"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t7"
+  type: "Concat"
+  bottom: "embedding_7"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev7"
+  bottom: "lstm0_hidden_prev7"
+  top: "concat0_t7"
+}
+layer {
+  name: "lstm1_t7"
+  type: "LSTMNode"
+  bottom: "concat0_t7"
+  bottom: "lstm0_mem_cell_prev7"
+  top: "lstm0_hidden7"
+  top: "lstm0_mem_cell7"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_7"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden7"
+  top: "hidden_att_7"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_7"
+  type: "Tile"
+  bottom: "hidden_att_7"
+  top: "tile_hidden_att_7"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_7"
+  type: "Reshape"
+  bottom: "tile_hidden_att_7"
+  top: "tile_hidden_reshape_7"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_7"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_7"
+  top: "sum_hidden_att_7"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_7"
+  type: "TanH"
+  bottom: "sum_hidden_att_7"
+  top: "sum_hidden_att_7"
+}
+layer {
+  name: "predict_att_7"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_7"
+  top: "predict_att_7"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_7"
+  type: "Reshape"
+  bottom: "predict_att_7"
+  top: "reshape_predict_att_7"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_7"
+  type: "Softmax"
+  bottom: "reshape_predict_att_7"
+  bottom: "beam_num_boxes"
+  top: "att_weight_7"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_7"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_7"
+  top: "att_product_7"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_7"
+  type: "Permute"
+  bottom: "att_product_7"
+  top: "permute_att_7"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_7"
+  type: "Reduction"
+  bottom: "permute_att_7"
+  top: "fc8_7"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t7"
+  type: "Concat"
+  bottom: "lstm0_hidden7"
+  bottom: "fc8_7"
+  bottom: "lstm1_hidden_prev7"
+  top: "concat1_t7"
+}
+layer {
+  name: "lstm2_t7"
+  type: "LSTMNode"
+  bottom: "concat1_t7"
+  bottom: "lstm1_mem_cell_prev7"
+  top: "lstm1_hidden7"
+  top: "lstm1_mem_cell7"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_7"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden7"
+  top: "predict_7"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_7"
+  type: "Softmax"
+  bottom: "predict_7"
+  top: "probs_7"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_7"
+  type: "Log"
+  bottom: "probs_7"
+  top: "logp_7"
+}
+layer {
+  name: "beam_search_7"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_6"
+  bottom: "bs_sentence_6"
+  bottom: "logp_7"
+  bottom: "lstm0_hidden7"
+  bottom: "lstm0_mem_cell7"
+  bottom: "lstm1_hidden7"
+  bottom: "lstm1_mem_cell7"
+  top: "bs_scores_7"
+  top: "bs_sentence_7"
+  top: "input_8"
+  top: "lstm0_hidden_prev8"
+  top: "lstm0_mem_cell_prev8"
+  top: "lstm1_hidden_prev8"
+  top: "lstm1_mem_cell_prev8"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_8"
+  type: "Embed"
+  bottom: "input_8"
+  top: "embedding_8"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t8"
+  type: "Concat"
+  bottom: "embedding_8"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev8"
+  bottom: "lstm0_hidden_prev8"
+  top: "concat0_t8"
+}
+layer {
+  name: "lstm1_t8"
+  type: "LSTMNode"
+  bottom: "concat0_t8"
+  bottom: "lstm0_mem_cell_prev8"
+  top: "lstm0_hidden8"
+  top: "lstm0_mem_cell8"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_8"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden8"
+  top: "hidden_att_8"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_8"
+  type: "Tile"
+  bottom: "hidden_att_8"
+  top: "tile_hidden_att_8"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_8"
+  type: "Reshape"
+  bottom: "tile_hidden_att_8"
+  top: "tile_hidden_reshape_8"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_8"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_8"
+  top: "sum_hidden_att_8"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_8"
+  type: "TanH"
+  bottom: "sum_hidden_att_8"
+  top: "sum_hidden_att_8"
+}
+layer {
+  name: "predict_att_8"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_8"
+  top: "predict_att_8"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_8"
+  type: "Reshape"
+  bottom: "predict_att_8"
+  top: "reshape_predict_att_8"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_8"
+  type: "Softmax"
+  bottom: "reshape_predict_att_8"
+  bottom: "beam_num_boxes"
+  top: "att_weight_8"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_8"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_8"
+  top: "att_product_8"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_8"
+  type: "Permute"
+  bottom: "att_product_8"
+  top: "permute_att_8"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_8"
+  type: "Reduction"
+  bottom: "permute_att_8"
+  top: "fc8_8"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t8"
+  type: "Concat"
+  bottom: "lstm0_hidden8"
+  bottom: "fc8_8"
+  bottom: "lstm1_hidden_prev8"
+  top: "concat1_t8"
+}
+layer {
+  name: "lstm2_t8"
+  type: "LSTMNode"
+  bottom: "concat1_t8"
+  bottom: "lstm1_mem_cell_prev8"
+  top: "lstm1_hidden8"
+  top: "lstm1_mem_cell8"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_8"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden8"
+  top: "predict_8"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_8"
+  type: "Softmax"
+  bottom: "predict_8"
+  top: "probs_8"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_8"
+  type: "Log"
+  bottom: "probs_8"
+  top: "logp_8"
+}
+layer {
+  name: "beam_search_8"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_7"
+  bottom: "bs_sentence_7"
+  bottom: "logp_8"
+  bottom: "lstm0_hidden8"
+  bottom: "lstm0_mem_cell8"
+  bottom: "lstm1_hidden8"
+  bottom: "lstm1_mem_cell8"
+  top: "bs_scores_8"
+  top: "bs_sentence_8"
+  top: "input_9"
+  top: "lstm0_hidden_prev9"
+  top: "lstm0_mem_cell_prev9"
+  top: "lstm1_hidden_prev9"
+  top: "lstm1_mem_cell_prev9"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_9"
+  type: "Embed"
+  bottom: "input_9"
+  top: "embedding_9"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t9"
+  type: "Concat"
+  bottom: "embedding_9"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev9"
+  bottom: "lstm0_hidden_prev9"
+  top: "concat0_t9"
+}
+layer {
+  name: "lstm1_t9"
+  type: "LSTMNode"
+  bottom: "concat0_t9"
+  bottom: "lstm0_mem_cell_prev9"
+  top: "lstm0_hidden9"
+  top: "lstm0_mem_cell9"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_9"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden9"
+  top: "hidden_att_9"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_9"
+  type: "Tile"
+  bottom: "hidden_att_9"
+  top: "tile_hidden_att_9"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_9"
+  type: "Reshape"
+  bottom: "tile_hidden_att_9"
+  top: "tile_hidden_reshape_9"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_9"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_9"
+  top: "sum_hidden_att_9"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_9"
+  type: "TanH"
+  bottom: "sum_hidden_att_9"
+  top: "sum_hidden_att_9"
+}
+layer {
+  name: "predict_att_9"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_9"
+  top: "predict_att_9"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_9"
+  type: "Reshape"
+  bottom: "predict_att_9"
+  top: "reshape_predict_att_9"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_9"
+  type: "Softmax"
+  bottom: "reshape_predict_att_9"
+  bottom: "beam_num_boxes"
+  top: "att_weight_9"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_9"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_9"
+  top: "att_product_9"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_9"
+  type: "Permute"
+  bottom: "att_product_9"
+  top: "permute_att_9"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_9"
+  type: "Reduction"
+  bottom: "permute_att_9"
+  top: "fc8_9"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t9"
+  type: "Concat"
+  bottom: "lstm0_hidden9"
+  bottom: "fc8_9"
+  bottom: "lstm1_hidden_prev9"
+  top: "concat1_t9"
+}
+layer {
+  name: "lstm2_t9"
+  type: "LSTMNode"
+  bottom: "concat1_t9"
+  bottom: "lstm1_mem_cell_prev9"
+  top: "lstm1_hidden9"
+  top: "lstm1_mem_cell9"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_9"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden9"
+  top: "predict_9"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_9"
+  type: "Softmax"
+  bottom: "predict_9"
+  top: "probs_9"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_9"
+  type: "Log"
+  bottom: "probs_9"
+  top: "logp_9"
+}
+layer {
+  name: "beam_search_9"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_8"
+  bottom: "bs_sentence_8"
+  bottom: "logp_9"
+  bottom: "lstm0_hidden9"
+  bottom: "lstm0_mem_cell9"
+  bottom: "lstm1_hidden9"
+  bottom: "lstm1_mem_cell9"
+  top: "bs_scores_9"
+  top: "bs_sentence_9"
+  top: "input_10"
+  top: "lstm0_hidden_prev10"
+  top: "lstm0_mem_cell_prev10"
+  top: "lstm1_hidden_prev10"
+  top: "lstm1_mem_cell_prev10"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_10"
+  type: "Embed"
+  bottom: "input_10"
+  top: "embedding_10"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t10"
+  type: "Concat"
+  bottom: "embedding_10"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev10"
+  bottom: "lstm0_hidden_prev10"
+  top: "concat0_t10"
+}
+layer {
+  name: "lstm1_t10"
+  type: "LSTMNode"
+  bottom: "concat0_t10"
+  bottom: "lstm0_mem_cell_prev10"
+  top: "lstm0_hidden10"
+  top: "lstm0_mem_cell10"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_10"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden10"
+  top: "hidden_att_10"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_10"
+  type: "Tile"
+  bottom: "hidden_att_10"
+  top: "tile_hidden_att_10"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_10"
+  type: "Reshape"
+  bottom: "tile_hidden_att_10"
+  top: "tile_hidden_reshape_10"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_10"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_10"
+  top: "sum_hidden_att_10"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_10"
+  type: "TanH"
+  bottom: "sum_hidden_att_10"
+  top: "sum_hidden_att_10"
+}
+layer {
+  name: "predict_att_10"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_10"
+  top: "predict_att_10"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_10"
+  type: "Reshape"
+  bottom: "predict_att_10"
+  top: "reshape_predict_att_10"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_10"
+  type: "Softmax"
+  bottom: "reshape_predict_att_10"
+  bottom: "beam_num_boxes"
+  top: "att_weight_10"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_10"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_10"
+  top: "att_product_10"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_10"
+  type: "Permute"
+  bottom: "att_product_10"
+  top: "permute_att_10"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_10"
+  type: "Reduction"
+  bottom: "permute_att_10"
+  top: "fc8_10"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t10"
+  type: "Concat"
+  bottom: "lstm0_hidden10"
+  bottom: "fc8_10"
+  bottom: "lstm1_hidden_prev10"
+  top: "concat1_t10"
+}
+layer {
+  name: "lstm2_t10"
+  type: "LSTMNode"
+  bottom: "concat1_t10"
+  bottom: "lstm1_mem_cell_prev10"
+  top: "lstm1_hidden10"
+  top: "lstm1_mem_cell10"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_10"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden10"
+  top: "predict_10"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_10"
+  type: "Softmax"
+  bottom: "predict_10"
+  top: "probs_10"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_10"
+  type: "Log"
+  bottom: "probs_10"
+  top: "logp_10"
+}
+layer {
+  name: "beam_search_10"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_9"
+  bottom: "bs_sentence_9"
+  bottom: "logp_10"
+  bottom: "lstm0_hidden10"
+  bottom: "lstm0_mem_cell10"
+  bottom: "lstm1_hidden10"
+  bottom: "lstm1_mem_cell10"
+  top: "bs_scores_10"
+  top: "bs_sentence_10"
+  top: "input_11"
+  top: "lstm0_hidden_prev11"
+  top: "lstm0_mem_cell_prev11"
+  top: "lstm1_hidden_prev11"
+  top: "lstm1_mem_cell_prev11"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_11"
+  type: "Embed"
+  bottom: "input_11"
+  top: "embedding_11"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t11"
+  type: "Concat"
+  bottom: "embedding_11"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev11"
+  bottom: "lstm0_hidden_prev11"
+  top: "concat0_t11"
+}
+layer {
+  name: "lstm1_t11"
+  type: "LSTMNode"
+  bottom: "concat0_t11"
+  bottom: "lstm0_mem_cell_prev11"
+  top: "lstm0_hidden11"
+  top: "lstm0_mem_cell11"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_11"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden11"
+  top: "hidden_att_11"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_11"
+  type: "Tile"
+  bottom: "hidden_att_11"
+  top: "tile_hidden_att_11"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_11"
+  type: "Reshape"
+  bottom: "tile_hidden_att_11"
+  top: "tile_hidden_reshape_11"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_11"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_11"
+  top: "sum_hidden_att_11"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_11"
+  type: "TanH"
+  bottom: "sum_hidden_att_11"
+  top: "sum_hidden_att_11"
+}
+layer {
+  name: "predict_att_11"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_11"
+  top: "predict_att_11"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_11"
+  type: "Reshape"
+  bottom: "predict_att_11"
+  top: "reshape_predict_att_11"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_11"
+  type: "Softmax"
+  bottom: "reshape_predict_att_11"
+  bottom: "beam_num_boxes"
+  top: "att_weight_11"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_11"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_11"
+  top: "att_product_11"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_11"
+  type: "Permute"
+  bottom: "att_product_11"
+  top: "permute_att_11"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_11"
+  type: "Reduction"
+  bottom: "permute_att_11"
+  top: "fc8_11"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t11"
+  type: "Concat"
+  bottom: "lstm0_hidden11"
+  bottom: "fc8_11"
+  bottom: "lstm1_hidden_prev11"
+  top: "concat1_t11"
+}
+layer {
+  name: "lstm2_t11"
+  type: "LSTMNode"
+  bottom: "concat1_t11"
+  bottom: "lstm1_mem_cell_prev11"
+  top: "lstm1_hidden11"
+  top: "lstm1_mem_cell11"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_11"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden11"
+  top: "predict_11"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_11"
+  type: "Softmax"
+  bottom: "predict_11"
+  top: "probs_11"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_11"
+  type: "Log"
+  bottom: "probs_11"
+  top: "logp_11"
+}
+layer {
+  name: "beam_search_11"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_10"
+  bottom: "bs_sentence_10"
+  bottom: "logp_11"
+  bottom: "lstm0_hidden11"
+  bottom: "lstm0_mem_cell11"
+  bottom: "lstm1_hidden11"
+  bottom: "lstm1_mem_cell11"
+  top: "bs_scores_11"
+  top: "bs_sentence_11"
+  top: "input_12"
+  top: "lstm0_hidden_prev12"
+  top: "lstm0_mem_cell_prev12"
+  top: "lstm1_hidden_prev12"
+  top: "lstm1_mem_cell_prev12"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_12"
+  type: "Embed"
+  bottom: "input_12"
+  top: "embedding_12"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t12"
+  type: "Concat"
+  bottom: "embedding_12"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev12"
+  bottom: "lstm0_hidden_prev12"
+  top: "concat0_t12"
+}
+layer {
+  name: "lstm1_t12"
+  type: "LSTMNode"
+  bottom: "concat0_t12"
+  bottom: "lstm0_mem_cell_prev12"
+  top: "lstm0_hidden12"
+  top: "lstm0_mem_cell12"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_12"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden12"
+  top: "hidden_att_12"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_12"
+  type: "Tile"
+  bottom: "hidden_att_12"
+  top: "tile_hidden_att_12"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_12"
+  type: "Reshape"
+  bottom: "tile_hidden_att_12"
+  top: "tile_hidden_reshape_12"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_12"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_12"
+  top: "sum_hidden_att_12"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_12"
+  type: "TanH"
+  bottom: "sum_hidden_att_12"
+  top: "sum_hidden_att_12"
+}
+layer {
+  name: "predict_att_12"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_12"
+  top: "predict_att_12"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_12"
+  type: "Reshape"
+  bottom: "predict_att_12"
+  top: "reshape_predict_att_12"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_12"
+  type: "Softmax"
+  bottom: "reshape_predict_att_12"
+  bottom: "beam_num_boxes"
+  top: "att_weight_12"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_12"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_12"
+  top: "att_product_12"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_12"
+  type: "Permute"
+  bottom: "att_product_12"
+  top: "permute_att_12"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_12"
+  type: "Reduction"
+  bottom: "permute_att_12"
+  top: "fc8_12"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t12"
+  type: "Concat"
+  bottom: "lstm0_hidden12"
+  bottom: "fc8_12"
+  bottom: "lstm1_hidden_prev12"
+  top: "concat1_t12"
+}
+layer {
+  name: "lstm2_t12"
+  type: "LSTMNode"
+  bottom: "concat1_t12"
+  bottom: "lstm1_mem_cell_prev12"
+  top: "lstm1_hidden12"
+  top: "lstm1_mem_cell12"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_12"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden12"
+  top: "predict_12"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_12"
+  type: "Softmax"
+  bottom: "predict_12"
+  top: "probs_12"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_12"
+  type: "Log"
+  bottom: "probs_12"
+  top: "logp_12"
+}
+layer {
+  name: "beam_search_12"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_11"
+  bottom: "bs_sentence_11"
+  bottom: "logp_12"
+  bottom: "lstm0_hidden12"
+  bottom: "lstm0_mem_cell12"
+  bottom: "lstm1_hidden12"
+  bottom: "lstm1_mem_cell12"
+  top: "bs_scores_12"
+  top: "bs_sentence_12"
+  top: "input_13"
+  top: "lstm0_hidden_prev13"
+  top: "lstm0_mem_cell_prev13"
+  top: "lstm1_hidden_prev13"
+  top: "lstm1_mem_cell_prev13"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_13"
+  type: "Embed"
+  bottom: "input_13"
+  top: "embedding_13"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t13"
+  type: "Concat"
+  bottom: "embedding_13"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev13"
+  bottom: "lstm0_hidden_prev13"
+  top: "concat0_t13"
+}
+layer {
+  name: "lstm1_t13"
+  type: "LSTMNode"
+  bottom: "concat0_t13"
+  bottom: "lstm0_mem_cell_prev13"
+  top: "lstm0_hidden13"
+  top: "lstm0_mem_cell13"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_13"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden13"
+  top: "hidden_att_13"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_13"
+  type: "Tile"
+  bottom: "hidden_att_13"
+  top: "tile_hidden_att_13"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_13"
+  type: "Reshape"
+  bottom: "tile_hidden_att_13"
+  top: "tile_hidden_reshape_13"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_13"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_13"
+  top: "sum_hidden_att_13"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_13"
+  type: "TanH"
+  bottom: "sum_hidden_att_13"
+  top: "sum_hidden_att_13"
+}
+layer {
+  name: "predict_att_13"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_13"
+  top: "predict_att_13"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_13"
+  type: "Reshape"
+  bottom: "predict_att_13"
+  top: "reshape_predict_att_13"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_13"
+  type: "Softmax"
+  bottom: "reshape_predict_att_13"
+  bottom: "beam_num_boxes"
+  top: "att_weight_13"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_13"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_13"
+  top: "att_product_13"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_13"
+  type: "Permute"
+  bottom: "att_product_13"
+  top: "permute_att_13"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_13"
+  type: "Reduction"
+  bottom: "permute_att_13"
+  top: "fc8_13"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t13"
+  type: "Concat"
+  bottom: "lstm0_hidden13"
+  bottom: "fc8_13"
+  bottom: "lstm1_hidden_prev13"
+  top: "concat1_t13"
+}
+layer {
+  name: "lstm2_t13"
+  type: "LSTMNode"
+  bottom: "concat1_t13"
+  bottom: "lstm1_mem_cell_prev13"
+  top: "lstm1_hidden13"
+  top: "lstm1_mem_cell13"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_13"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden13"
+  top: "predict_13"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_13"
+  type: "Softmax"
+  bottom: "predict_13"
+  top: "probs_13"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_13"
+  type: "Log"
+  bottom: "probs_13"
+  top: "logp_13"
+}
+layer {
+  name: "beam_search_13"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_12"
+  bottom: "bs_sentence_12"
+  bottom: "logp_13"
+  bottom: "lstm0_hidden13"
+  bottom: "lstm0_mem_cell13"
+  bottom: "lstm1_hidden13"
+  bottom: "lstm1_mem_cell13"
+  top: "bs_scores_13"
+  top: "bs_sentence_13"
+  top: "input_14"
+  top: "lstm0_hidden_prev14"
+  top: "lstm0_mem_cell_prev14"
+  top: "lstm1_hidden_prev14"
+  top: "lstm1_mem_cell_prev14"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_14"
+  type: "Embed"
+  bottom: "input_14"
+  top: "embedding_14"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t14"
+  type: "Concat"
+  bottom: "embedding_14"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev14"
+  bottom: "lstm0_hidden_prev14"
+  top: "concat0_t14"
+}
+layer {
+  name: "lstm1_t14"
+  type: "LSTMNode"
+  bottom: "concat0_t14"
+  bottom: "lstm0_mem_cell_prev14"
+  top: "lstm0_hidden14"
+  top: "lstm0_mem_cell14"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_14"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden14"
+  top: "hidden_att_14"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_14"
+  type: "Tile"
+  bottom: "hidden_att_14"
+  top: "tile_hidden_att_14"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_14"
+  type: "Reshape"
+  bottom: "tile_hidden_att_14"
+  top: "tile_hidden_reshape_14"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_14"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_14"
+  top: "sum_hidden_att_14"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_14"
+  type: "TanH"
+  bottom: "sum_hidden_att_14"
+  top: "sum_hidden_att_14"
+}
+layer {
+  name: "predict_att_14"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_14"
+  top: "predict_att_14"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_14"
+  type: "Reshape"
+  bottom: "predict_att_14"
+  top: "reshape_predict_att_14"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_14"
+  type: "Softmax"
+  bottom: "reshape_predict_att_14"
+  bottom: "beam_num_boxes"
+  top: "att_weight_14"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_14"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_14"
+  top: "att_product_14"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_14"
+  type: "Permute"
+  bottom: "att_product_14"
+  top: "permute_att_14"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_14"
+  type: "Reduction"
+  bottom: "permute_att_14"
+  top: "fc8_14"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t14"
+  type: "Concat"
+  bottom: "lstm0_hidden14"
+  bottom: "fc8_14"
+  bottom: "lstm1_hidden_prev14"
+  top: "concat1_t14"
+}
+layer {
+  name: "lstm2_t14"
+  type: "LSTMNode"
+  bottom: "concat1_t14"
+  bottom: "lstm1_mem_cell_prev14"
+  top: "lstm1_hidden14"
+  top: "lstm1_mem_cell14"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_14"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden14"
+  top: "predict_14"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_14"
+  type: "Softmax"
+  bottom: "predict_14"
+  top: "probs_14"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_14"
+  type: "Log"
+  bottom: "probs_14"
+  top: "logp_14"
+}
+layer {
+  name: "beam_search_14"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_13"
+  bottom: "bs_sentence_13"
+  bottom: "logp_14"
+  bottom: "lstm0_hidden14"
+  bottom: "lstm0_mem_cell14"
+  bottom: "lstm1_hidden14"
+  bottom: "lstm1_mem_cell14"
+  top: "bs_scores_14"
+  top: "bs_sentence_14"
+  top: "input_15"
+  top: "lstm0_hidden_prev15"
+  top: "lstm0_mem_cell_prev15"
+  top: "lstm1_hidden_prev15"
+  top: "lstm1_mem_cell_prev15"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_15"
+  type: "Embed"
+  bottom: "input_15"
+  top: "embedding_15"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t15"
+  type: "Concat"
+  bottom: "embedding_15"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev15"
+  bottom: "lstm0_hidden_prev15"
+  top: "concat0_t15"
+}
+layer {
+  name: "lstm1_t15"
+  type: "LSTMNode"
+  bottom: "concat0_t15"
+  bottom: "lstm0_mem_cell_prev15"
+  top: "lstm0_hidden15"
+  top: "lstm0_mem_cell15"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_15"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden15"
+  top: "hidden_att_15"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_15"
+  type: "Tile"
+  bottom: "hidden_att_15"
+  top: "tile_hidden_att_15"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_15"
+  type: "Reshape"
+  bottom: "tile_hidden_att_15"
+  top: "tile_hidden_reshape_15"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_15"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_15"
+  top: "sum_hidden_att_15"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_15"
+  type: "TanH"
+  bottom: "sum_hidden_att_15"
+  top: "sum_hidden_att_15"
+}
+layer {
+  name: "predict_att_15"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_15"
+  top: "predict_att_15"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_15"
+  type: "Reshape"
+  bottom: "predict_att_15"
+  top: "reshape_predict_att_15"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_15"
+  type: "Softmax"
+  bottom: "reshape_predict_att_15"
+  bottom: "beam_num_boxes"
+  top: "att_weight_15"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_15"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_15"
+  top: "att_product_15"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_15"
+  type: "Permute"
+  bottom: "att_product_15"
+  top: "permute_att_15"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_15"
+  type: "Reduction"
+  bottom: "permute_att_15"
+  top: "fc8_15"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t15"
+  type: "Concat"
+  bottom: "lstm0_hidden15"
+  bottom: "fc8_15"
+  bottom: "lstm1_hidden_prev15"
+  top: "concat1_t15"
+}
+layer {
+  name: "lstm2_t15"
+  type: "LSTMNode"
+  bottom: "concat1_t15"
+  bottom: "lstm1_mem_cell_prev15"
+  top: "lstm1_hidden15"
+  top: "lstm1_mem_cell15"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_15"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden15"
+  top: "predict_15"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_15"
+  type: "Softmax"
+  bottom: "predict_15"
+  top: "probs_15"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_15"
+  type: "Log"
+  bottom: "probs_15"
+  top: "logp_15"
+}
+layer {
+  name: "beam_search_15"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_14"
+  bottom: "bs_sentence_14"
+  bottom: "logp_15"
+  bottom: "lstm0_hidden15"
+  bottom: "lstm0_mem_cell15"
+  bottom: "lstm1_hidden15"
+  bottom: "lstm1_mem_cell15"
+  top: "bs_scores_15"
+  top: "bs_sentence_15"
+  top: "input_16"
+  top: "lstm0_hidden_prev16"
+  top: "lstm0_mem_cell_prev16"
+  top: "lstm1_hidden_prev16"
+  top: "lstm1_mem_cell_prev16"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_16"
+  type: "Embed"
+  bottom: "input_16"
+  top: "embedding_16"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t16"
+  type: "Concat"
+  bottom: "embedding_16"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev16"
+  bottom: "lstm0_hidden_prev16"
+  top: "concat0_t16"
+}
+layer {
+  name: "lstm1_t16"
+  type: "LSTMNode"
+  bottom: "concat0_t16"
+  bottom: "lstm0_mem_cell_prev16"
+  top: "lstm0_hidden16"
+  top: "lstm0_mem_cell16"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_16"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden16"
+  top: "hidden_att_16"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_16"
+  type: "Tile"
+  bottom: "hidden_att_16"
+  top: "tile_hidden_att_16"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_16"
+  type: "Reshape"
+  bottom: "tile_hidden_att_16"
+  top: "tile_hidden_reshape_16"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_16"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_16"
+  top: "sum_hidden_att_16"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_16"
+  type: "TanH"
+  bottom: "sum_hidden_att_16"
+  top: "sum_hidden_att_16"
+}
+layer {
+  name: "predict_att_16"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_16"
+  top: "predict_att_16"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_16"
+  type: "Reshape"
+  bottom: "predict_att_16"
+  top: "reshape_predict_att_16"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_16"
+  type: "Softmax"
+  bottom: "reshape_predict_att_16"
+  bottom: "beam_num_boxes"
+  top: "att_weight_16"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_16"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_16"
+  top: "att_product_16"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_16"
+  type: "Permute"
+  bottom: "att_product_16"
+  top: "permute_att_16"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_16"
+  type: "Reduction"
+  bottom: "permute_att_16"
+  top: "fc8_16"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t16"
+  type: "Concat"
+  bottom: "lstm0_hidden16"
+  bottom: "fc8_16"
+  bottom: "lstm1_hidden_prev16"
+  top: "concat1_t16"
+}
+layer {
+  name: "lstm2_t16"
+  type: "LSTMNode"
+  bottom: "concat1_t16"
+  bottom: "lstm1_mem_cell_prev16"
+  top: "lstm1_hidden16"
+  top: "lstm1_mem_cell16"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_16"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden16"
+  top: "predict_16"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_16"
+  type: "Softmax"
+  bottom: "predict_16"
+  top: "probs_16"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_16"
+  type: "Log"
+  bottom: "probs_16"
+  top: "logp_16"
+}
+layer {
+  name: "beam_search_16"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_15"
+  bottom: "bs_sentence_15"
+  bottom: "logp_16"
+  bottom: "lstm0_hidden16"
+  bottom: "lstm0_mem_cell16"
+  bottom: "lstm1_hidden16"
+  bottom: "lstm1_mem_cell16"
+  top: "bs_scores_16"
+  top: "bs_sentence_16"
+  top: "input_17"
+  top: "lstm0_hidden_prev17"
+  top: "lstm0_mem_cell_prev17"
+  top: "lstm1_hidden_prev17"
+  top: "lstm1_mem_cell_prev17"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_17"
+  type: "Embed"
+  bottom: "input_17"
+  top: "embedding_17"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t17"
+  type: "Concat"
+  bottom: "embedding_17"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev17"
+  bottom: "lstm0_hidden_prev17"
+  top: "concat0_t17"
+}
+layer {
+  name: "lstm1_t17"
+  type: "LSTMNode"
+  bottom: "concat0_t17"
+  bottom: "lstm0_mem_cell_prev17"
+  top: "lstm0_hidden17"
+  top: "lstm0_mem_cell17"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_17"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden17"
+  top: "hidden_att_17"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_17"
+  type: "Tile"
+  bottom: "hidden_att_17"
+  top: "tile_hidden_att_17"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_17"
+  type: "Reshape"
+  bottom: "tile_hidden_att_17"
+  top: "tile_hidden_reshape_17"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_17"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_17"
+  top: "sum_hidden_att_17"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_17"
+  type: "TanH"
+  bottom: "sum_hidden_att_17"
+  top: "sum_hidden_att_17"
+}
+layer {
+  name: "predict_att_17"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_17"
+  top: "predict_att_17"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_17"
+  type: "Reshape"
+  bottom: "predict_att_17"
+  top: "reshape_predict_att_17"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_17"
+  type: "Softmax"
+  bottom: "reshape_predict_att_17"
+  bottom: "beam_num_boxes"
+  top: "att_weight_17"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_17"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_17"
+  top: "att_product_17"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_17"
+  type: "Permute"
+  bottom: "att_product_17"
+  top: "permute_att_17"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_17"
+  type: "Reduction"
+  bottom: "permute_att_17"
+  top: "fc8_17"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t17"
+  type: "Concat"
+  bottom: "lstm0_hidden17"
+  bottom: "fc8_17"
+  bottom: "lstm1_hidden_prev17"
+  top: "concat1_t17"
+}
+layer {
+  name: "lstm2_t17"
+  type: "LSTMNode"
+  bottom: "concat1_t17"
+  bottom: "lstm1_mem_cell_prev17"
+  top: "lstm1_hidden17"
+  top: "lstm1_mem_cell17"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_17"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden17"
+  top: "predict_17"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_17"
+  type: "Softmax"
+  bottom: "predict_17"
+  top: "probs_17"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_17"
+  type: "Log"
+  bottom: "probs_17"
+  top: "logp_17"
+}
+layer {
+  name: "beam_search_17"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_16"
+  bottom: "bs_sentence_16"
+  bottom: "logp_17"
+  bottom: "lstm0_hidden17"
+  bottom: "lstm0_mem_cell17"
+  bottom: "lstm1_hidden17"
+  bottom: "lstm1_mem_cell17"
+  top: "bs_scores_17"
+  top: "bs_sentence_17"
+  top: "input_18"
+  top: "lstm0_hidden_prev18"
+  top: "lstm0_mem_cell_prev18"
+  top: "lstm1_hidden_prev18"
+  top: "lstm1_mem_cell_prev18"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_18"
+  type: "Embed"
+  bottom: "input_18"
+  top: "embedding_18"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t18"
+  type: "Concat"
+  bottom: "embedding_18"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev18"
+  bottom: "lstm0_hidden_prev18"
+  top: "concat0_t18"
+}
+layer {
+  name: "lstm1_t18"
+  type: "LSTMNode"
+  bottom: "concat0_t18"
+  bottom: "lstm0_mem_cell_prev18"
+  top: "lstm0_hidden18"
+  top: "lstm0_mem_cell18"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_18"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden18"
+  top: "hidden_att_18"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_18"
+  type: "Tile"
+  bottom: "hidden_att_18"
+  top: "tile_hidden_att_18"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_18"
+  type: "Reshape"
+  bottom: "tile_hidden_att_18"
+  top: "tile_hidden_reshape_18"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_18"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_18"
+  top: "sum_hidden_att_18"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_18"
+  type: "TanH"
+  bottom: "sum_hidden_att_18"
+  top: "sum_hidden_att_18"
+}
+layer {
+  name: "predict_att_18"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_18"
+  top: "predict_att_18"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_18"
+  type: "Reshape"
+  bottom: "predict_att_18"
+  top: "reshape_predict_att_18"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_18"
+  type: "Softmax"
+  bottom: "reshape_predict_att_18"
+  bottom: "beam_num_boxes"
+  top: "att_weight_18"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_18"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_18"
+  top: "att_product_18"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_18"
+  type: "Permute"
+  bottom: "att_product_18"
+  top: "permute_att_18"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_18"
+  type: "Reduction"
+  bottom: "permute_att_18"
+  top: "fc8_18"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t18"
+  type: "Concat"
+  bottom: "lstm0_hidden18"
+  bottom: "fc8_18"
+  bottom: "lstm1_hidden_prev18"
+  top: "concat1_t18"
+}
+layer {
+  name: "lstm2_t18"
+  type: "LSTMNode"
+  bottom: "concat1_t18"
+  bottom: "lstm1_mem_cell_prev18"
+  top: "lstm1_hidden18"
+  top: "lstm1_mem_cell18"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_18"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden18"
+  top: "predict_18"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_18"
+  type: "Softmax"
+  bottom: "predict_18"
+  top: "probs_18"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_18"
+  type: "Log"
+  bottom: "probs_18"
+  top: "logp_18"
+}
+layer {
+  name: "beam_search_18"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_17"
+  bottom: "bs_sentence_17"
+  bottom: "logp_18"
+  bottom: "lstm0_hidden18"
+  bottom: "lstm0_mem_cell18"
+  bottom: "lstm1_hidden18"
+  bottom: "lstm1_mem_cell18"
+  top: "bs_scores_18"
+  top: "bs_sentence_18"
+  top: "input_19"
+  top: "lstm0_hidden_prev19"
+  top: "lstm0_mem_cell_prev19"
+  top: "lstm1_hidden_prev19"
+  top: "lstm1_mem_cell_prev19"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "embedding_19"
+  type: "Embed"
+  bottom: "input_19"
+  top: "embedding_19"
+  param {
+    name: "embed_param"
+  }
+  propagate_down: false
+  embed_param {
+    num_output: 1000
+    input_dim: 10010
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "concat0_t19"
+  type: "Concat"
+  bottom: "embedding_19"
+  bottom: "beam_context"
+  bottom: "lstm1_hidden_prev19"
+  bottom: "lstm0_hidden_prev19"
+  top: "concat0_t19"
+}
+layer {
+  name: "lstm1_t19"
+  type: "LSTMNode"
+  bottom: "concat0_t19"
+  bottom: "lstm0_mem_cell_prev19"
+  top: "lstm0_hidden19"
+  top: "lstm0_mem_cell19"
+  param {
+    name: "lstm0_param_0"
+  }
+  param {
+    name: "lstm0_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "hidden_att_19"
+  type: "InnerProduct"
+  bottom: "lstm0_hidden19"
+  top: "hidden_att_19"
+  param {
+    name: "hidden_att_param_0"
+  }
+  inner_product_param {
+    num_output: 512
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+  }
+}
+layer {
+  name: "tile_hidden_att_19"
+  type: "Tile"
+  bottom: "hidden_att_19"
+  top: "tile_hidden_att_19"
+  tile_param {
+    axis: 1
+    tiles: 100
+  }
+}
+layer {
+  name: "tile_hidden_reshape_19"
+  type: "Reshape"
+  bottom: "tile_hidden_att_19"
+  top: "tile_hidden_reshape_19"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+      dim: 512
+    }
+  }
+}
+layer {
+  name: "sum_hidden_att_19"
+  type: "Eltwise"
+  bottom: "beam_fc"
+  bottom: "tile_hidden_reshape_19"
+  top: "sum_hidden_att_19"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "hidden_tanh_19"
+  type: "TanH"
+  bottom: "sum_hidden_att_19"
+  top: "sum_hidden_att_19"
+}
+layer {
+  name: "predict_att_19"
+  type: "InnerProduct"
+  bottom: "sum_hidden_att_19"
+  top: "predict_att_19"
+  param {
+    name: "predict_att_param_0"
+  }
+  inner_product_param {
+    num_output: 1
+    bias_term: false
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    axis: 2
+  }
+}
+layer {
+  name: "reshape_predict_att_19"
+  type: "Reshape"
+  bottom: "predict_att_19"
+  top: "reshape_predict_att_19"
+  reshape_param {
+    shape {
+      dim: 0
+      dim: -1
+    }
+  }
+}
+layer {
+  name: "att_weight_19"
+  type: "Softmax"
+  bottom: "reshape_predict_att_19"
+  bottom: "beam_num_boxes"
+  top: "att_weight_19"
+  softmax_param {
+    engine: CAFFE
+    axis: 1
+  }
+}
+layer {
+  name: "att_product_19"
+  type: "Scale"
+  bottom: "beam_spatial_features"
+  bottom: "att_weight_19"
+  top: "att_product_19"
+  scale_param {
+    axis: 0
+  }
+}
+layer {
+  name: "permute_att_19"
+  type: "Permute"
+  bottom: "att_product_19"
+  top: "permute_att_19"
+  permute_param {
+    order: 0
+    order: 2
+    order: 1
+  }
+}
+layer {
+  name: "fc8_19"
+  type: "Reduction"
+  bottom: "permute_att_19"
+  top: "fc8_19"
+  reduction_param {
+    axis: 2
+  }
+}
+layer {
+  name: "concat1_t19"
+  type: "Concat"
+  bottom: "lstm0_hidden19"
+  bottom: "fc8_19"
+  bottom: "lstm1_hidden_prev19"
+  top: "concat1_t19"
+}
+layer {
+  name: "lstm2_t19"
+  type: "LSTMNode"
+  bottom: "concat1_t19"
+  bottom: "lstm1_mem_cell_prev19"
+  top: "lstm1_hidden19"
+  top: "lstm1_mem_cell19"
+  param {
+    name: "lstm1_param_0"
+  }
+  param {
+    name: "lstm1_param_1"
+  }
+  propagate_down: true
+  propagate_down: true
+  lstm_param {
+    num_cells: 1000
+    input_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    forget_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    output_gate_weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    input_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    input_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    forget_gate_bias_filler {
+      type: "constant"
+      value: 1.0
+    }
+    output_gate_bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "predict_19"
+  type: "InnerProduct"
+  bottom: "lstm1_hidden19"
+  top: "predict_19"
+  param {
+    name: "predict_param_0"
+    lr_mult: 1.0
+    decay_mult: 1.0
+  }
+  param {
+    name: "predict_param_1"
+    lr_mult: 2.0
+    decay_mult: 0.0
+  }
+  inner_product_param {
+    num_output: 10010
+    weight_filler {
+      type: "gaussian"
+      std: 0.00999999977648
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+    axis: 1
+  }
+}
+layer {
+  name: "probs_19"
+  type: "Softmax"
+  bottom: "predict_19"
+  top: "probs_19"
+  softmax_param {
+    axis: 1
+  }
+}
+layer {
+  name: "logp_19"
+  type: "Log"
+  bottom: "probs_19"
+  top: "logp_19"
+}
+layer {
+  name: "beam_search_19"
+  type: "BeamSearchNode"
+  bottom: "bs_scores_18"
+  bottom: "bs_sentence_18"
+  bottom: "logp_19"
+  bottom: "lstm0_hidden19"
+  bottom: "lstm0_mem_cell19"
+  bottom: "lstm1_hidden19"
+  bottom: "lstm1_mem_cell19"
+  top: "log_prob"
+  top: "caption"
+  top: "input_20"
+  top: "lstm0_hidden_prev20"
+  top: "lstm0_mem_cell_prev20"
+  top: "lstm1_hidden_prev20"
+  top: "lstm1_mem_cell_prev20"
+  beam_search_param {
+    beam_size: 5
+    end_of_sequence: 0
+    allowed_multiple: 2
+    allowed_multiple: 5
+    allowed_multiple: 4
+    allowed_multiple: 15
+    allowed_multiple: 3
+    allowed_multiple: 6
+    allowed_multiple: 8
+    allowed_multiple: 7
+    allowed_multiple: 9
+    allowed_multiple: 13
+    allowed_multiple: 277
+    allowed_multiple: 11
+    allowed_multiple: 30
+    allowed_multiple: 16
+    allowed_multiple: 19
+    allowed_multiple: 27
+    allowed_multiple: 25
+    allowed_multiple: 119
+    allowed_multiple: 48
+    ignore_label: 1
+  }
+}
+layer {
+  name: "silence"
+  type: "Silence"
+  bottom: "lstm0_mem_cell19"
+  bottom: "lstm1_mem_cell19"
+  bottom: "image_id"
+  bottom: "boxes"
+  bottom: "input_20"
+  bottom: "lstm0_hidden_prev20"
+  bottom: "lstm0_mem_cell_prev20"
+  bottom: "lstm1_hidden_prev20"
+  bottom: "lstm1_mem_cell_prev20"
+}
