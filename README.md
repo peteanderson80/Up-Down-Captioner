@@ -1,16 +1,16 @@
 # Up-Down-Captioner
 
-Simple yet high-performing image captioning model using Caffe and python. Using image features from [bottom-up attention](https://github.com/peteanderson80/bottom-up-attention), in July 2017 this model achieved state-of-the-art performance on all metrics of the [COCO captions test leaderboard](http://cocodataset.org/#captions-leaderboard)(**SPICE 21.5**, **CIDEr 117.9**, **BLEU_4 36.9**). The architecture (2-layer LSTM with attention) is described in Section 3.2 of:
+Simple yet high-performing image captioning model using Caffe and python. Using image features from [bottom-up attention](https://github.com/peteanderson80/bottom-up-attention), in July 2017 this model achieved state-of-the-art performance on all metrics of the [COCO captions test leaderboard](http://cocodataset.org/#captions-leaderboard) (**SPICE 21.5**, **CIDEr 117.9**, **BLEU_4 36.9**). The architecture (2-layer LSTM with attention) is described in Section 3.2 of:
 - [Bottom-Up and Top-Down Attention for Image Captioning and Visual Question Answering](https://arxiv.org/abs/1707.07998). 
 
 ### Reference
 If you use this code in your research, please cite our paper:
 ```
-@article{Anderson2017up-down,
+@inproceedings{Anderson2017up-down,
   author = {Peter Anderson and Xiaodong He and Chris Buehler and Damien Teney and Mark Johnson and Stephen Gould and Lei Zhang},
   title = {Bottom-Up and Top-Down Attention for Image Captioning and Visual Question Answering},
-  journal = {arXiv preprint arXiv:1707.07998},
-  year = {2017}
+  booktitle={CVPR},
+  year = {2018}
 }
 ```
 
