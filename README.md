@@ -68,31 +68,37 @@ All instructions are from the top level directory. To run the demo, should be on
     make -j8 && make pycaffe
     ```
 
-3.  Add python layers and caffe build to PYTHONPATH:
+3.  Build the COCO tools:
+    ```Shell
+    cd ./external/coco/PythonAPI
+    make
+    ```
+
+4.  Add python layers and caffe build to PYTHONPATH:
     ```Shell
     cd $REPO_ROOT
     export PYTHONPATH=${PYTHONPATH}:$(pwd)/layers:$(pwd)/lib:$(pwd)/external/caffe/python
     ```
     
-4.  Build Ross Girshick's Cython modules (to run the demo on new images)
+5.  Build Ross Girshick's Cython modules (to run the demo on new images)
     ```Shell
     cd $REPO_ROOT/lib
     make
     ```
     
-5.  Download Stanford CoreNLP (required by the evaluation code):
+6.  Download Stanford CoreNLP (required by the evaluation code):
     ```Shell
     cd ./external/coco-caption
     ./get_stanford_models.sh
     ```
 
-6.  Download the MS COCO train/val image caption annotations. Extract all the json files into one folder `$COCOdata`, then create a symlink to this location:
+7.  Download the MS COCO train/val image caption annotations. Extract all the json files into one folder `$COCOdata`, then create a symlink to this location:
     ```Shell
     cd $REPO_ROOT/data
     ln -s $COCOdata coco
     ``` 
 
-7.  Pre-process the caption annotations for training (building vocabs etc).
+8.  Pre-process the caption annotations for training (building vocabs etc).
     ```Shell
     cd $REPO_ROOT
     python scripts/preprocess_coco.py
